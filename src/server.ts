@@ -1,102 +1,52 @@
 import { AIChatAgent } from "@cloudflare/ai-chat";
 import { createWorkersAI } from "workers-ai-provider";
-import { streamText, convertToModelMessages, tool } from "ai";
-import { z } from "zod";
+import { streamText, convertToModelMessages } from "ai";
 import { routeAgentRequest } from "agents";
 
-const SYSTEM_PROMPT = `You are an expert Cloudflare Edge Security Analyst with deep knowledge of:
-- DDoS attacks (volumetric, protocol, application-layer)
-- Web Application Firewall (WAF) bypass techniques
-- Bot detection and mitigation
-- Cloudflare Firewall Rules, Rate Limiting, and WAF managed rules
-- HTTP request patterns, anomaly detection, and threat classification
-- Cloudflare Workers, Pages, and R2 security
+const SYSTEM_PROMPT = `You are an expert Cloudflare Edge Security Analyst. When a user describes a security incident or pastes logs, respond with this exact structure:
 
-When a user pastes logs, request data, or describes a security incident:
-1. Identify the threat type and attack vector
-2. Assess the severity (Critical / High / Medium / Low)
-3. Explain what is happening in plain English
-4. Suggest a specific, ready-to-use Cloudflare Firewall Rule expression
-5. Recommend additional Cloudflare mitigations (rate limiting, Bot Fight Mode, WAF rules, etc.)
+## Threat Analysis
+**Type:** [e.g. DDoS, Credential Stuffing, SQL Injection, Bot Traffic, WAF Bypass]
+**Severity:** [Critical / High / Medium / Low]
+**Summary:** [One sentence explaining what is happening]
 
-Firewall rule expressions use Cloudflare's filter syntax, for example:
-- Block by IP: (ip.src eq 1.2.3.4)
-- Block by country: (ip.geoip.country eq "CN")
-- Block by user agent: (http.user_agent contains "sqlmap")
-- Rate limit by path: (http.request.uri.path eq "/login")
-- Block known bots: (cf.client.bot)
+## What's Happening
+[2-3 sentences explaining the attack in plain English]
 
-Always format firewall rule suggestions in a code block. Be concise but thorough.`;
+## Recommended Firewall Rule
+\`\`\`
+(your cloudflare filter expression here)
+\`\`\`
+**Action:** [block / challenge / js_challenge / managed_challenge]
+
+## Additional Mitigations
+- [Cloudflare-specific recommendation 1]
+- [Cloudflare-specific recommendation 2]
+- [Cloudflare-specific recommendation 3]
+
+Cloudflare filter expression examples:
+- Block IP range: (ip.src in {1.2.3.0/24})
+- Block country: (ip.geoip.country eq "RU")
+- Block user agent: (http.user_agent contains "sqlmap")
+- Rate limit path: (http.request.uri.path eq "/api/login")
+- Block bots: (cf.client.bot)
+- Combined: (ip.geoip.country eq "RU" and http.request.uri.path eq "/api/login")
+
+Always be concise and actionable. Every response must include a ready-to-use firewall rule expression.`;
 
 export class SecurityAgent extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<AIChatAgent["onChatMessage"]>[0]) {
     try {
       const workersai = createWorkersAI({ binding: this.env.AI });
 
-    const result = streamText({
-      model: workersai("@cf/meta/llama-3.1-8b-instruct-fp8"),
-      system: SYSTEM_PROMPT,
-      messages: await convertToModelMessages(this.messages),
-      tools: {
-        classifyThreat: tool({
-          description:
-            "Classify the threat type and severity based on the log or description provided",
-          parameters: z.object({
-            threatType: z
-              .string()
-              .describe(
-                "Type of threat, e.g. DDoS, SQL Injection, Bot Traffic, WAF Bypass, Credential Stuffing"
-              ),
-            severity: z
-              .enum(["Critical", "High", "Medium", "Low"])
-              .describe("Severity level of the threat"),
-            confidence: z
-              .number()
-              .min(0)
-              .max(100)
-              .describe("Confidence percentage of this classification"),
-            summary: z
-              .string()
-              .describe("One-sentence summary of the threat"),
-          }),
-          execute: async ({ threatType, severity, confidence, summary }) => ({
-            threatType,
-            severity,
-            confidence,
-            summary,
-          }),
-        }),
+      const result = streamText({
+        model: workersai("@cf/meta/llama-3.1-8b-instruct-fp8"),
+        system: SYSTEM_PROMPT,
+        messages: await convertToModelMessages(this.messages),
+        onFinish,
+      });
 
-        suggestFirewallRule: tool({
-          description:
-            "Generate a ready-to-use Cloudflare Firewall Rule expression to block or mitigate the threat",
-          parameters: z.object({
-            expression: z
-              .string()
-              .describe("Cloudflare filter expression, e.g. (ip.src eq 1.2.3.4)"),
-            action: z
-              .enum(["block", "challenge", "js_challenge", "managed_challenge", "log"])
-              .describe("Action to take when the rule matches"),
-            ruleName: z
-              .string()
-              .describe("Short descriptive name for this rule"),
-            rationale: z
-              .string()
-              .describe("Why this rule will mitigate the threat"),
-          }),
-          execute: async ({ expression, action, ruleName, rationale }) => ({
-            expression,
-            action,
-            ruleName,
-            rationale,
-          }),
-        }),
-      },
-      maxSteps: 3,
-      onFinish,
-    });
-
-    return result.toUIMessageStreamResponse();
+      return result.toUIMessageStreamResponse();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("onChatMessage error:", msg);

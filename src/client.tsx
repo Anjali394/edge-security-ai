@@ -151,7 +151,7 @@ function App() {
             <span className="logo-icon">🛡</span>
             <div>
               <span className="logo-title">Edge Security AI</span>
-              <span className="logo-sub">Powered by Cloudflare Workers AI · Llama 3.3</span>
+              <span className="logo-sub">Powered by Cloudflare Workers AI · Llama 3.1 8B</span>
             </div>
           </div>
           <span className={`status-dot ${status === "streaming" ? "streaming" : status === "ready" ? "ready" : "connecting"}`} />
