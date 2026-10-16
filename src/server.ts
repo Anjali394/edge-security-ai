@@ -30,10 +30,11 @@ Always format firewall rule suggestions in a code block. Be concise but thorough
 
 export class SecurityAgent extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<AIChatAgent["onChatMessage"]>[0]) {
-    const workersai = createWorkersAI({ binding: this.env.AI });
+    try {
+      const workersai = createWorkersAI({ binding: this.env.AI });
 
     const result = streamText({
-      model: workersai("@cf/meta/llama-3.1-8b-instruct"),
+      model: workersai("@cf/meta/llama-3.1-8b-instruct-fp8"),
       system: SYSTEM_PROMPT,
       messages: await convertToModelMessages(this.messages),
       tools: {
@@ -96,6 +97,14 @@ export class SecurityAgent extends AIChatAgent<Env> {
     });
 
     return result.toUIMessageStreamResponse();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("onChatMessage error:", msg);
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 }
 
