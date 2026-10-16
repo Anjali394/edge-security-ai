@@ -33,7 +33,7 @@ export class SecurityAgent extends AIChatAgent<Env> {
     const workersai = createWorkersAI({ binding: this.env.AI });
 
     const result = streamText({
-      model: workersai("@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+      model: workersai("@cf/meta/llama-3.1-8b-instruct"),
       system: SYSTEM_PROMPT,
       messages: await convertToModelMessages(this.messages),
       tools: {

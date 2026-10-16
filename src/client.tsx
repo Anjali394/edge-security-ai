@@ -114,7 +114,15 @@ function App() {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const agent = useAgent({ agent: "SecurityAgent" });
+  const sessionId = useState(() => {
+    const stored = sessionStorage.getItem("session-id");
+    if (stored) return stored;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem("session-id", id);
+    return id;
+  })[0];
+
+  const agent = useAgent({ agent: "SecurityAgent", name: sessionId });
   const { messages, sendMessage, status } = useAgentChat({ agent });
 
   useEffect(() => {
