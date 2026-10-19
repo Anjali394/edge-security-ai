@@ -242,14 +242,3 @@ npm run deploy
 - **Workers AI** — Llama 3.1 8B inference at the edge
 - **Workers Assets** — serves the React frontend
 
----
-
-## Assignment Context
-
-Built as part of the Cloudflare optional assignment for the hiring process.
-
-**Prompt history:** Available in this repository's commit history and the Claude Code session used to build it.
-
-> *AI-assisted coding is encouraged, but you have to submit prompt history.*
-
-The entire project was built using [Claude Code](https://claude.ai/code) with Cloudflare's official skills/MCP plugins. Full conversation is available on request.
